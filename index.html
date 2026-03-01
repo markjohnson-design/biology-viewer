@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My STL Viewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+        }
+
+        #sidebar {
+            width: 250px;
+            background-color: #2d2d2d;
+            border-right: 1px solid #444;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #sidebar h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .file-list li {
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: #3d3d3d;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            word-wrap: break-word;
+        }
+
+        .file-list li:hover, .file-list li.active {
+            background-color: #5c5c5c;
+        }
+
+        #viewer-container {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            display: none;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>My Models</h2>
+        <ul class="file-list" id="file-list">
+            <li data-file="models/my_first_model.stl">First Model</li>
+            <li data-file="models/my_second_model.stl">Second Model</li>
+        </ul>
+    </div>
+
+    <div id="viewer-container">
+        <div id="loading">Loading...</div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+        // --- Setup Scene ---
+        const container = document.getElementById('viewer-container');
+        const loadingDiv = document.getElementById('loading');
+        
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1e1e1e);
+
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // --- Controls (Zoom, Pan, Rotate) ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x404040, 1.5); // Soft white light
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight2.position.set(-1, -1, -1).normalize();
+        scene.add(directionalLight2);
+
+        // --- STL Loading Logic ---
+        let currentMesh = null;
+        const loader = new STLLoader();
+        const material = new THREE.MeshPhongMaterial({ color: 0x00AADD, specular: 0x111111, shininess: 200 });
+
+        function loadModel(filePath) {
+            loadingDiv.style.display = 'block';
+
+            loader.load(
+                filePath,
+                function (geometry) {
+                    // Remove previous model if exists
+                    if (currentMesh) {
+                        scene.remove(currentMesh);
+                        currentMesh.geometry.dispose();
+                    }
+
+                    // Center the geometry
+                    geometry.center();
+                    
+                    currentMesh = new THREE.Mesh(geometry, material);
+                    scene.add(currentMesh);
+
+                    // Adjust camera to fit the object
+                    geometry.computeBoundingBox();
+                    const boundingBox = geometry.boundingBox;
+                    const size = new THREE.Vector3();
+                    boundingBox.getSize(size);
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
+                    camera.lookAt(0, 0, 0);
+                    
+                    controls.target.set(0, 0, 0);
+                    controls.update();
+
+                    loadingDiv.style.display = 'none';
+                },
+                (xhr) => {
+                    // Optional: progress tracking
+                    // console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
+                },
+                (error) => {
+                    console.error('An error happened', error);
+                    loadingDiv.style.display = 'none';
+                    alert("Could not load model. Check the file path.");
+                }
+            );
+        }
+
+        // --- UI Interaction ---
+        const fileItems = document.querySelectorAll('.file-list li');
+        fileItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                // Highlight active item
+                fileItems.forEach(li => li.classList.remove('active'));
+                item.classList.add('active');
+                
+                // Load the file
+                const filePath = item.getAttribute('data-file');
+                loadModel(filePath);
+            });
+        });
+
+        // Load the first model by default if it exists
+        if (fileItems.length > 0) {
+            fileItems[0].click();
+        }
+
+        // --- Window Resize Handling ---
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
