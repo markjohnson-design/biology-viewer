@@ -167,7 +167,7 @@
 
     <div id="sidebar">
         <div class="brand-header">
-            <h1>Abingdon Bio</h1>
+            <h1>Abingdon</h1>
             <p>3D Model Viewer</p>
         </div>
         
@@ -200,13 +200,10 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         // ==========================================
-        // CONFIGURATION: Add your GitHub Details here
-        // ==========================================
-        const GITHUB_USERNAME = 'markjohnson-design'; // e.g., 'markjohnson-design'
-        const GITHUB_REPO = 'biology-viewer';           // e.g., 'biology-viewer'
+        const GITHUB_USERNAME = 'markjohnson-design'; 
+        const GITHUB_REPO = 'biology-viewer';          
         // ==========================================
 
-        // --- Theme Toggle Logic ---
         const body = document.body;
         const themeToggleBtn = document.getElementById('theme-toggle');
         
@@ -228,7 +225,6 @@
             updateSceneBackground();
         });
 
-        // --- Setup Scene ---
         const container = document.getElementById('viewer-container');
         const loadingDiv = document.getElementById('loading');
         
@@ -243,11 +239,9 @@
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        // ENABLED AUTO-ROTATE
         controls.autoRotate = true;
         controls.autoRotateSpeed = 2.0;
 
-        // --- Lighting ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
         scene.add(ambientLight);
         
@@ -256,14 +250,8 @@
         scene.add(directionalLight);
         updateSceneBackground();
 
-        // --- GLB Loading Logic ---
         let currentModel = null;
         const loader = new GLTFLoader();
-
-        // THE CORS FIX: Tells GitHub we are requesting the raw binary via the API
-        loader.setRequestHeader({
-            'Accept': 'application/octet-stream'
-        });
 
         function loadModel(downloadUrl) {
             loadingDiv.textContent = 'Loading... 0%';
@@ -272,9 +260,7 @@
             loader.load(
                 downloadUrl,
                 function (gltf) {
-                    if (currentModel) {
-                        scene.remove(currentModel);
-                    }
+                    if (currentModel) scene.remove(currentModel);
                     currentModel = gltf.scene;
                     scene.add(currentModel);
 
@@ -312,7 +298,6 @@
             );
         }
 
-        // --- GitHub API Fetching ---
         async function fetchGitHubReleases() {
             const statusDiv = document.getElementById('sidebar-status');
             const fileListUl = document.getElementById('file-list');
@@ -321,15 +306,13 @@
 
             try {
                 const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    throw new Error("Release not found. Make sure repo is public and a release exists.");
-                }
+                if (!response.ok) throw new Error("Release not found.");
                 
                 const data = await response.json();
                 const glbAssets = data.assets.filter(asset => asset.name.toLowerCase().endsWith('.glb'));
 
                 if (glbAssets.length === 0) {
-                    statusDiv.textContent = "No .glb files found in the latest release.";
+                    statusDiv.textContent = "No .glb files found.";
                     return;
                 }
 
@@ -342,16 +325,16 @@
                     li.addEventListener('click', () => {
                         document.querySelectorAll('.file-list li').forEach(el => el.classList.remove('active'));
                         li.classList.add('active');
-                        // THE CORS FIX 2: Uses the secure .url instead of the browser_download_url
-                        loadModel(asset.url);
+                        
+                        // MAGIC HAPPENS HERE: We route the download through our new Cloudflare Function
+                        const proxyUrl = `/proxy?url=${encodeURIComponent(asset.browser_download_url)}`;
+                        loadModel(proxyUrl);
                     });
                     
                     fileListUl.appendChild(li);
                 });
 
-                if (fileListUl.firstChild) {
-                    fileListUl.firstChild.click();
-                }
+                if (fileListUl.firstChild) fileListUl.firstChild.click();
 
             } catch (error) {
                 console.error("Error fetching files:", error);
@@ -361,17 +344,15 @@
 
         fetchGitHubReleases();
 
-        // --- Window Resize Handling ---
         window.addEventListener('resize', () => {
             camera.aspect = container.clientWidth / container.clientHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(container.clientWidth, container.clientHeight);
         });
 
-        // --- Animation Loop ---
         function animate() {
             requestAnimationFrame(animate);
-            controls.update(); // Drives the auto-rotation
+            controls.update(); 
             renderer.render(scene, camera);
         }
         animate();
