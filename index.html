@@ -3,32 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My STL Viewer</title>
+    <title>Abingdon School | 3D Model Viewer</title>
     <style>
+        /* CSS Variables for Light/Dark Mode and Abingdon Branding */
+        :root {
+            /* Abingdon Brand Colors */
+            --abingdon-cerise: #D8125C; 
+            --abingdon-cerise-hover: #B00D49;
+            
+            /* Light Mode Defaults */
+            --bg-body: #F4F5F7;
+            --bg-sidebar: #FFFFFF;
+            --text-main: #1C2331;
+            --text-muted: #5A606E;
+            --border-color: #E2E8F0;
+            --item-hover: #F8F9FA;
+            --item-active: #FFF0F5;
+        }
+
+        /* Dark Mode Overrides */
+        [data-theme="dark"] {
+            --bg-body: #121826;
+            --bg-sidebar: #1E2532;
+            --text-main: #FFFFFF;
+            --text-muted: #A0AEC0;
+            --border-color: #2D3748;
+            --item-hover: #2A3441;
+            --item-active: #3D2235;
+        }
+
         body {
             margin: 0;
             padding: 0;
             display: flex;
             height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #1e1e1e;
-            color: #ffffff;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
         }
 
         #sidebar {
-            width: 250px;
-            background-color: #2d2d2d;
-            border-right: 1px solid #444;
-            overflow-y: auto;
-            padding: 20px;
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
             box-sizing: border-box;
+            transition: background-color 0.3s, border-color 0.3s;
+            z-index: 10;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
         }
 
-        #sidebar h2 {
-            margin-top: 0;
-            font-size: 1.2rem;
-            border-bottom: 1px solid #444;
-            padding-bottom: 10px;
+        .brand-header {
+            padding: 25px 20px;
+            border-bottom: 3px solid var(--abingdon-cerise);
+        }
+
+        .brand-header h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .brand-header p {
+            margin: 5px 0 0 0;
+            font-size: 0.85rem;
+            color: var(--abingdon-cerise);
+            font-weight: 600;
+        }
+
+        .sidebar-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
         }
 
         .file-list {
@@ -38,23 +88,58 @@
         }
 
         .file-list li {
-            padding: 10px;
-            margin-bottom: 5px;
-            background-color: #3d3d3d;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
             cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-            word-wrap: break-word;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-weight: 500;
+            font-size: 0.95rem;
         }
 
-        .file-list li:hover, .file-list li.active {
-            background-color: #5c5c5c;
+        .file-list li:hover {
+            background-color: var(--item-hover);
+            border-color: var(--abingdon-cerise);
+        }
+
+        .file-list li.active {
+            background-color: var(--item-active);
+            border-color: var(--abingdon-cerise);
+            color: var(--abingdon-cerise);
+            font-weight: 600;
+        }
+
+        .controls-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        button.theme-toggle {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--abingdon-cerise);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        button.theme-toggle:hover {
+            background-color: var(--abingdon-cerise-hover);
         }
 
         #viewer-container {
             flex-grow: 1;
             position: relative;
             overflow: hidden;
+            background-color: var(--bg-body);
+            transition: background-color 0.3s;
         }
 
         #loading {
@@ -62,26 +147,40 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 1.2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            background: var(--abingdon-cerise);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
             display: none;
-            background: rgba(0,0,0,0.7);
-            padding: 10px 20px;
-            border-radius: 5px;
+            box-shadow: 0 4px 15px rgba(216, 18, 92, 0.4);
+            z-index: 20;
         }
     </style>
 </head>
-<body>
+<body data-theme="light">
 
     <div id="sidebar">
-        <h2>My Models</h2>
-        <ul class="file-list" id="file-list">
-            <li data-file="models/bio.stl">First Model</li>
-            <li data-file="models/my_second_model.stl">Second Model</li>
-        </ul>
+        <div class="brand-header">
+            <h1>Abingdon</h1>
+            <p>3D Model Viewer</p>
+        </div>
+        
+        <div class="sidebar-content">
+            <ul class="file-list" id="file-list">
+                <li data-file="models/1IGY_no_extra_atoms_final-ribbon-bychain-print_NIH3D.glb">1IGY_no_extra_atoms_final-ribbon-bychain-print_NIH3D</li>
+                <li data-file="models/my_second_model.glb">Second Model</li>
+            </ul>
+        </div>
+
+        <div class="controls-footer">
+            <button class="theme-toggle" id="theme-toggle">Switch to Dark Mode</button>
+        </div>
     </div>
 
     <div id="viewer-container">
-        <div id="loading">Loading...</div>
+        <div id="loading">Loading Model...</div>
     </div>
 
     <script type="importmap">
@@ -96,66 +195,91 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        // Note: Changed from STLLoader to GLTFLoader
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // --- Theme Toggle Logic ---
+        const body = document.body;
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        
+        function updateSceneBackground() {
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            scene.background = new THREE.Color(isDark ? 0x121826 : 0xF4F5F7);
+            
+            // Adjust light intensity based on theme so models don't look washed out
+            ambientLight.intensity = isDark ? 1.5 : 2.5;
+            directionalLight.intensity = isDark ? 1.5 : 2.0;
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            if (body.getAttribute('data-theme') === 'light') {
+                body.setAttribute('data-theme', 'dark');
+                themeToggleBtn.textContent = 'Switch to Light Mode';
+            } else {
+                body.setAttribute('data-theme', 'light');
+                themeToggleBtn.textContent = 'Switch to Dark Mode';
+            }
+            updateSceneBackground();
+        });
 
         // --- Setup Scene ---
         const container = document.getElementById('viewer-container');
         const loadingDiv = document.getElementById('loading');
         
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1e1e1e);
-
+        
         const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
         
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
+        // Important for accurate colours in GLB files
+        renderer.outputColorSpace = THREE.SRGBColorSpace; 
         container.appendChild(renderer.domElement);
 
-        // --- Controls (Zoom, Pan, Rotate) ---
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
         // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0x404040, 1.5); // Soft white light
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
         scene.add(ambientLight);
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
         directionalLight.position.set(1, 1, 1).normalize();
         scene.add(directionalLight);
 
-        const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-        directionalLight2.position.set(-1, -1, -1).normalize();
-        scene.add(directionalLight2);
+        // Initialize background color
+        updateSceneBackground();
 
-        // --- STL Loading Logic ---
-        let currentMesh = null;
-        const loader = new STLLoader();
-        const material = new THREE.MeshPhongMaterial({ color: 0x00AADD, specular: 0x111111, shininess: 200 });
+        // --- GLB Loading Logic ---
+        let currentModel = null;
+        const loader = new GLTFLoader();
 
         function loadModel(filePath) {
             loadingDiv.style.display = 'block';
 
             loader.load(
                 filePath,
-                function (geometry) {
+                function (gltf) {
                     // Remove previous model if exists
-                    if (currentMesh) {
-                        scene.remove(currentMesh);
-                        currentMesh.geometry.dispose();
+                    if (currentModel) {
+                        scene.remove(currentModel);
                     }
 
-                    // Center the geometry
-                    geometry.center();
-                    
-                    currentMesh = new THREE.Mesh(geometry, material);
-                    scene.add(currentMesh);
+                    currentModel = gltf.scene;
+                    scene.add(currentModel);
 
-                    // Adjust camera to fit the object
-                    geometry.computeBoundingBox();
-                    const boundingBox = geometry.boundingBox;
-                    const size = new THREE.Vector3();
-                    boundingBox.getSize(size);
+                    // Auto-center and scale the model
+                    const box = new THREE.Box3().setFromObject(currentModel);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+
+                    // Move model to origin
+                    currentModel.position.x += (currentModel.position.x - center.x);
+                    currentModel.position.y += (currentModel.position.y - center.y);
+                    currentModel.position.z += (currentModel.position.z - center.z);
+
+                    // Adjust camera to fit the object perfectly
                     const maxDim = Math.max(size.x, size.y, size.z);
                     camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
                     camera.lookAt(0, 0, 0);
@@ -165,10 +289,7 @@
 
                     loadingDiv.style.display = 'none';
                 },
-                (xhr) => {
-                    // Optional: progress tracking
-                    // console.log((xhr.loaded / xhr.total) * 100 + '% loaded');
-                },
+                undefined, // Progress callback can go here if needed
                 (error) => {
                     console.error('An error happened', error);
                     loadingDiv.style.display = 'none';
@@ -180,12 +301,10 @@
         // --- UI Interaction ---
         const fileItems = document.querySelectorAll('.file-list li');
         fileItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                // Highlight active item
+            item.addEventListener('click', () => {
                 fileItems.forEach(li => li.classList.remove('active'));
                 item.classList.add('active');
                 
-                // Load the file
                 const filePath = item.getAttribute('data-file');
                 loadModel(filePath);
             });
