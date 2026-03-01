@@ -158,6 +158,8 @@
             display: none;
             box-shadow: 0 4px 15px rgba(216, 18, 92, 0.4);
             z-index: 20;
+            min-width: 150px;
+            text-align: center;
         }
     </style>
 </head>
@@ -165,7 +167,7 @@
 
     <div id="sidebar">
         <div class="brand-header">
-            <h1>Abingdon School Biology</h1>
+            <h1>Abingdon</h1>
             <p>3D Model Viewer</p>
         </div>
         
@@ -180,7 +182,7 @@
     </div>
 
     <div id="viewer-container">
-        <div id="loading">Loading Model...</div>
+        <div id="loading">Loading...</div>
     </div>
 
     <script type="importmap">
@@ -256,10 +258,13 @@
         const loader = new GLTFLoader();
 
         function loadModel(downloadUrl) {
+            // Reset the text so it doesn't instantly show the old 100% from the last model
+            loadingDiv.textContent = 'Loading... 0%';
             loadingDiv.style.display = 'block';
 
             loader.load(
                 downloadUrl,
+                // 1. Success Callback
                 function (gltf) {
                     if (currentModel) {
                         scene.remove(currentModel);
@@ -284,10 +289,22 @@
 
                     loadingDiv.style.display = 'none';
                 },
-                undefined,
-                (error) => {
+                // 2. Progress Callback (This is the new part!)
+                function (xhr) {
+                    if (xhr.lengthComputable) {
+                        const percentComplete = Math.round((xhr.loaded / xhr.total) * 100);
+                        loadingDiv.textContent = `Loading... ${percentComplete}%`;
+                    } else {
+                        // Fallback just in case GitHub doesn't send the total file size
+                        const mbLoaded = (xhr.loaded / (1024 * 1024)).toFixed(1);
+                        loadingDiv.textContent = `Loading... ${mbLoaded} MB`;
+                    }
+                },
+                // 3. Error Callback
+                function (error) {
                     console.error('An error happened', error);
-                    loadingDiv.style.display = 'none';
+                    loadingDiv.textContent = 'Error loading model';
+                    setTimeout(() => { loadingDiv.style.display = 'none'; }, 3000);
                     alert("Could not load model. Ensure the GitHub repository is public.");
                 }
             );
@@ -298,7 +315,6 @@
             const statusDiv = document.getElementById('sidebar-status');
             const fileListUl = document.getElementById('file-list');
             
-            // Calls the GitHub API to find the absolute latest release
             const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/releases/latest`;
 
             try {
@@ -308,8 +324,6 @@
                 }
                 
                 const data = await response.json();
-                
-                // Filter the attachments (assets) to only include .glb files
                 const glbAssets = data.assets.filter(asset => asset.name.toLowerCase().endsWith('.glb'));
 
                 if (glbAssets.length === 0) {
@@ -319,10 +333,8 @@
 
                 statusDiv.style.display = 'none';
 
-                // Build the UI list
                 glbAssets.forEach((asset) => {
                     const li = document.createElement('li');
-                    // Remove the .glb extension for a cleaner look
                     li.textContent = asset.name.replace(/\.[^/.]+$/, "");
                     
                     li.addEventListener('click', () => {
@@ -334,7 +346,6 @@
                     fileListUl.appendChild(li);
                 });
 
-                // Auto-load the first model
                 if (fileListUl.firstChild) {
                     fileListUl.firstChild.click();
                 }
@@ -345,7 +356,6 @@
             }
         }
 
-        // Start fetching files on load
         fetchGitHubReleases();
 
         // --- Window Resize Handling ---
