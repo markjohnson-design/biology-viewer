@@ -62,7 +62,7 @@
 
         .brand-header h1 {
             margin: 0;
-            font-size: 1.4rem;
+            font-size: 1.1rem; /* Reduced from 1.4rem */
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -159,23 +159,23 @@
         }
     </style>
 </head>
-<body data-theme="light">
+<body data-theme="dark">
 
     <div id="sidebar">
         <div class="brand-header">
-            <h1>Abingdon School Biology</h1>
+            <h1>Abingdon</h1>
             <p>3D Model Viewer</p>
         </div>
         
         <div class="sidebar-content">
             <ul class="file-list" id="file-list">
-                <li data-file="models/1IGY_no_extra_atoms_final-ribbon-bychain-print_NIH3D.glb">1IGY_no_extra_atoms_final-ribbon-bychain-print_NIH3D</li>
+                <li data-file="models/1IGY_no_extra_atoms_final-ribbon-bychain-print_NIH3D.glb">1IGY_no_extra_atoms_final-ribbon-bychain</li>
                 <li data-file="models/my_second_model.glb">Second Model</li>
             </ul>
         </div>
 
         <div class="controls-footer">
-            <button class="theme-toggle" id="theme-toggle">Switch to Dark Mode</button>
+            <button class="theme-toggle" id="theme-toggle">Switch to Light Mode</button>
         </div>
     </div>
 
@@ -195,7 +195,6 @@
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        // Note: Changed from STLLoader to GLTFLoader
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         // --- Theme Toggle Logic ---
@@ -206,7 +205,6 @@
             const isDark = body.getAttribute('data-theme') === 'dark';
             scene.background = new THREE.Color(isDark ? 0x121826 : 0xF4F5F7);
             
-            // Adjust light intensity based on theme so models don't look washed out
             ambientLight.intensity = isDark ? 1.5 : 2.5;
             directionalLight.intensity = isDark ? 1.5 : 2.0;
         }
@@ -233,7 +231,6 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(container.clientWidth, container.clientHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-        // Important for accurate colours in GLB files
         renderer.outputColorSpace = THREE.SRGBColorSpace; 
         container.appendChild(renderer.domElement);
 
@@ -241,10 +238,10 @@
         controls.enableDamping = true;
 
         // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // Default to dark mode intensity
         scene.add(ambientLight);
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Default to dark mode intensity
         directionalLight.position.set(1, 1, 1).normalize();
         scene.add(directionalLight);
 
@@ -261,7 +258,6 @@
             loader.load(
                 filePath,
                 function (gltf) {
-                    // Remove previous model if exists
                     if (currentModel) {
                         scene.remove(currentModel);
                     }
@@ -269,17 +265,14 @@
                     currentModel = gltf.scene;
                     scene.add(currentModel);
 
-                    // Auto-center and scale the model
                     const box = new THREE.Box3().setFromObject(currentModel);
                     const center = box.getCenter(new THREE.Vector3());
                     const size = box.getSize(new THREE.Vector3());
 
-                    // Move model to origin
                     currentModel.position.x += (currentModel.position.x - center.x);
                     currentModel.position.y += (currentModel.position.y - center.y);
                     currentModel.position.z += (currentModel.position.z - center.z);
 
-                    // Adjust camera to fit the object perfectly
                     const maxDim = Math.max(size.x, size.y, size.z);
                     camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 1.5);
                     camera.lookAt(0, 0, 0);
@@ -289,7 +282,7 @@
 
                     loadingDiv.style.display = 'none';
                 },
-                undefined, // Progress callback can go here if needed
+                undefined,
                 (error) => {
                     console.error('An error happened', error);
                     loadingDiv.style.display = 'none';
@@ -310,7 +303,6 @@
             });
         });
 
-        // Load the first model by default if it exists
         if (fileItems.length > 0) {
             fileItems[0].click();
         }
