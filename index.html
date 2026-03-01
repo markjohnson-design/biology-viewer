@@ -5,13 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Abingdon School | 3D Model Viewer</title>
     <style>
-        /* CSS Variables for Light/Dark Mode and Abingdon Branding */
         :root {
-            /* Abingdon Brand Colors */
             --abingdon-cerise: #D8125C; 
             --abingdon-cerise-hover: #B00D49;
-            
-            /* Light Mode Defaults */
             --bg-body: #F4F5F7;
             --bg-sidebar: #FFFFFF;
             --text-main: #1C2331;
@@ -21,7 +17,6 @@
             --item-active: #FFF0F5;
         }
 
-        /* Dark Mode Overrides */
         [data-theme="dark"] {
             --bg-body: #121826;
             --bg-sidebar: #1E2532;
@@ -62,7 +57,7 @@
 
         .brand-header h1 {
             margin: 0;
-            font-size: 1.1rem; /* Reduced from 1.4rem */
+            font-size: 1.1rem; 
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -110,6 +105,13 @@
             border-color: var(--abingdon-cerise);
             color: var(--abingdon-cerise);
             font-weight: 600;
+        }
+        
+        .status-message {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 20px;
         }
 
         .controls-footer {
@@ -163,15 +165,13 @@
 
     <div id="sidebar">
         <div class="brand-header">
-            <h1>Abingdon School Biology</h1>
+            <h1>Abingdon</h1>
             <p>3D Model Viewer</p>
         </div>
         
         <div class="sidebar-content">
-            <ul class="file-list" id="file-list">
-                <li data-file="models/1IGY_no_extra_atoms_final-ribbon-bychain-print_NIH3D.glb">1IGY_no_extra_atoms_final-ribbon-bychain</li>
-                <li data-file="models/my_second_model.glb">Second Model</li>
-            </ul>
+            <ul class="file-list" id="file-list"></ul>
+            <div id="sidebar-status" class="status-message">Fetching models from GitHub...</div>
         </div>
 
         <div class="controls-footer">
@@ -197,6 +197,13 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+        // ==========================================
+        // CONFIGURATION: Add your GitHub Details here
+        // ==========================================
+        const GITHUB_USERNAME = 'markjohnson-design'; // e.g., 'johndoe'
+        const GITHUB_REPO = 'biology-viewer';           // e.g., 'abingdon-3d-viewer'
+        // ==========================================
+
         // --- Theme Toggle Logic ---
         const body = document.body;
         const themeToggleBtn = document.getElementById('theme-toggle');
@@ -204,7 +211,6 @@
         function updateSceneBackground() {
             const isDark = body.getAttribute('data-theme') === 'dark';
             scene.background = new THREE.Color(isDark ? 0x121826 : 0xF4F5F7);
-            
             ambientLight.intensity = isDark ? 1.5 : 2.5;
             directionalLight.intensity = isDark ? 1.5 : 2.0;
         }
@@ -225,7 +231,6 @@
         const loadingDiv = document.getElementById('loading');
         
         const scene = new THREE.Scene();
-        
         const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
         
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -238,30 +243,27 @@
         controls.enableDamping = true;
 
         // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // Default to dark mode intensity
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
         scene.add(ambientLight);
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Default to dark mode intensity
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); 
         directionalLight.position.set(1, 1, 1).normalize();
         scene.add(directionalLight);
-
-        // Initialize background color
         updateSceneBackground();
 
         // --- GLB Loading Logic ---
         let currentModel = null;
         const loader = new GLTFLoader();
 
-        function loadModel(filePath) {
+        function loadModel(downloadUrl) {
             loadingDiv.style.display = 'block';
 
             loader.load(
-                filePath,
+                downloadUrl,
                 function (gltf) {
                     if (currentModel) {
                         scene.remove(currentModel);
                     }
-
                     currentModel = gltf.scene;
                     scene.add(currentModel);
 
@@ -286,26 +288,65 @@
                 (error) => {
                     console.error('An error happened', error);
                     loadingDiv.style.display = 'none';
-                    alert("Could not load model. Check the file path.");
+                    alert("Could not load model. Ensure the GitHub repository is public.");
                 }
             );
         }
 
-        // --- UI Interaction ---
-        const fileItems = document.querySelectorAll('.file-list li');
-        fileItems.forEach(item => {
-            item.addEventListener('click', () => {
-                fileItems.forEach(li => li.classList.remove('active'));
-                item.classList.add('active');
-                
-                const filePath = item.getAttribute('data-file');
-                loadModel(filePath);
-            });
-        });
+        // --- GitHub API Fetching ---
+        async function fetchGitHubReleases() {
+            const statusDiv = document.getElementById('sidebar-status');
+            const fileListUl = document.getElementById('file-list');
+            
+            // Calls the GitHub API to find the absolute latest release
+            const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/releases/latest`;
 
-        if (fileItems.length > 0) {
-            fileItems[0].click();
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error("Release not found. Make sure repo is public and a release exists.");
+                }
+                
+                const data = await response.json();
+                
+                // Filter the attachments (assets) to only include .glb files
+                const glbAssets = data.assets.filter(asset => asset.name.toLowerCase().endsWith('.glb'));
+
+                if (glbAssets.length === 0) {
+                    statusDiv.textContent = "No .glb files found in the latest release.";
+                    return;
+                }
+
+                statusDiv.style.display = 'none';
+
+                // Build the UI list
+                glbAssets.forEach((asset) => {
+                    const li = document.createElement('li');
+                    // Remove the .glb extension for a cleaner look
+                    li.textContent = asset.name.replace(/\.[^/.]+$/, "");
+                    
+                    li.addEventListener('click', () => {
+                        document.querySelectorAll('.file-list li').forEach(el => el.classList.remove('active'));
+                        li.classList.add('active');
+                        loadModel(asset.browser_download_url);
+                    });
+                    
+                    fileListUl.appendChild(li);
+                });
+
+                // Auto-load the first model
+                if (fileListUl.firstChild) {
+                    fileListUl.firstChild.click();
+                }
+
+            } catch (error) {
+                console.error("Error fetching files:", error);
+                statusDiv.textContent = "Error: Check repo name or visibility.";
+            }
         }
+
+        // Start fetching files on load
+        fetchGitHubReleases();
 
         // --- Window Resize Handling ---
         window.addEventListener('resize', () => {
