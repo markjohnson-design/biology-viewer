@@ -167,7 +167,7 @@
 
     <div id="sidebar">
         <div class="brand-header">
-            <h1>Abingdon</h1>
+            <h1>Abingdon Bio</h1>
             <p>3D Model Viewer</p>
         </div>
         
@@ -202,8 +202,8 @@
         // ==========================================
         // CONFIGURATION: Add your GitHub Details here
         // ==========================================
-        const GITHUB_USERNAME = 'markjohnson-design'; // e.g., 'johndoe'
-        const GITHUB_REPO = 'biology-viewer';           // e.g., 'abingdon-3d-viewer'
+        const GITHUB_USERNAME = 'markjohnson-design'; // e.g., 'markjohnson-design'
+        const GITHUB_REPO = 'biology-viewer';           // e.g., 'biology-viewer'
         // ==========================================
 
         // --- Theme Toggle Logic ---
@@ -243,6 +243,9 @@
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
+        // ENABLED AUTO-ROTATE
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 2.0;
 
         // --- Lighting ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
@@ -257,14 +260,17 @@
         let currentModel = null;
         const loader = new GLTFLoader();
 
+        // THE CORS FIX: Tells GitHub we are requesting the raw binary via the API
+        loader.setRequestHeader({
+            'Accept': 'application/octet-stream'
+        });
+
         function loadModel(downloadUrl) {
-            // Reset the text so it doesn't instantly show the old 100% from the last model
             loadingDiv.textContent = 'Loading... 0%';
             loadingDiv.style.display = 'block';
 
             loader.load(
                 downloadUrl,
-                // 1. Success Callback
                 function (gltf) {
                     if (currentModel) {
                         scene.remove(currentModel);
@@ -289,23 +295,19 @@
 
                     loadingDiv.style.display = 'none';
                 },
-                // 2. Progress Callback (This is the new part!)
                 function (xhr) {
                     if (xhr.lengthComputable) {
                         const percentComplete = Math.round((xhr.loaded / xhr.total) * 100);
                         loadingDiv.textContent = `Loading... ${percentComplete}%`;
                     } else {
-                        // Fallback just in case GitHub doesn't send the total file size
                         const mbLoaded = (xhr.loaded / (1024 * 1024)).toFixed(1);
                         loadingDiv.textContent = `Loading... ${mbLoaded} MB`;
                     }
                 },
-                // 3. Error Callback
                 function (error) {
                     console.error('An error happened', error);
                     loadingDiv.textContent = 'Error loading model';
                     setTimeout(() => { loadingDiv.style.display = 'none'; }, 3000);
-                    alert("Could not load model. Ensure the GitHub repository is public.");
                 }
             );
         }
@@ -340,7 +342,8 @@
                     li.addEventListener('click', () => {
                         document.querySelectorAll('.file-list li').forEach(el => el.classList.remove('active'));
                         li.classList.add('active');
-                        loadModel(asset.browser_download_url);
+                        // THE CORS FIX 2: Uses the secure .url instead of the browser_download_url
+                        loadModel(asset.url);
                     });
                     
                     fileListUl.appendChild(li);
@@ -368,7 +371,7 @@
         // --- Animation Loop ---
         function animate() {
             requestAnimationFrame(animate);
-            controls.update();
+            controls.update(); // Drives the auto-rotation
             renderer.render(scene, camera);
         }
         animate();
